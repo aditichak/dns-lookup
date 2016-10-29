@@ -68,7 +68,7 @@ public class DNSlookup {
 		//int value = ((buf[0] & 0xFF) << 8) | (buf[1] & 0xFF);
 		//System.out.println(value);
 //		buf[2] = (byte) (0 << 7) | (byte) (0 << 4);
-		buf[2] = (byte) 1;
+		buf[2] = (byte) 0;
 		buf[3] = (byte) 0;
 
 		buf[4] = (byte) 0;
@@ -141,6 +141,7 @@ public class DNSlookup {
 		System.out.println("\n");
 
 		DNSResponse returnedData = new DNSResponse(data, data.length);
+		returnedData.checkQueryId(buf[0], buf[1]);
 
 	}
 
