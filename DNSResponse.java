@@ -174,94 +174,118 @@ public class DNSResponse {
 
 
         }
-
-        counter++;
-        int compressionPointer = (int) data[counter];
-        compressionPointer = (compressionPointer >> 6) & 3;
-        if (compressionPointer == 0b00) {
-            int lengths = (int) data[counter];
-        }
-
-        int compression = 0;
-        if (compressionPointer == 3) {
-            int compressionFirst = (((int)data[counter]) & 63) << 6;
+        for (int yaml = 0; yaml < answerCount; yaml++) {
             counter++;
-            int compressionSecond = (int) data[counter] & 0xFF;
-            compression = compressionFirst | compressionSecond;
 
-        }
-        System.out.println("compress" + compression);
-
-        String dName = "";
-        while (data[compression] != 0) {
-            length = (int) data[compression];
-
-            for (int k = 0; k < length; k++) {
-
-                compression++;
-                char part =  (char) data[compression];
-                String dom = Character.toString(part);
-                dName = dName + dom;
+            int compressionPointer = (int) data[counter];
+            compressionPointer = (compressionPointer >> 6) & 3;
+            if (compressionPointer == 0b00) {
+                int lengths = (int) data[counter];
             }
-            dName += ".";
-            compression++;
 
+            int compression = 0;
+            if (compressionPointer == 3) {
+                int compressionFirst = (((int) data[counter]) & 63) << 6;
+                counter++;
+                int compressionSecond = (int) data[counter] & 0xFF;
+                compression = compressionFirst | compressionSecond;
+
+            }
+            System.out.println("compress" + compression);
+
+            String dName = "";
+            while (data[compression] != 0) {
+                length = (int) data[compression];
+
+                for (int k = 0; k < length; k++) {
+
+                    compression++;
+                    char part = (char) data[compression];
+                    String dom = Character.toString(part);
+                    dName = dName + dom;
+                }
+                dName += ".";
+                compression++;
+
+            }
+
+            dName = dName.substring(0, dName.length() - 1);
+            System.out.println(dName);
+
+            counter++;
+            int t1 = (int) data[counter];
+            counter++;
+            int t2 = (int) data[counter];
+            int type = ((t1 << 8) & 0xFFFF) | (t2 & 0xFF);
+            if (type == 1) {
+                System.out.println("Type: A (Host Address)");
+            }
+
+            counter++;
+            int c1 = (int) data[counter];
+            counter++;
+            int c2 = (int) data[counter];
+            int classType = ((c1 << 8) & 0xFFFF) | (c2 & 0xFF);
+            if (classType == 1) {
+                System.out.println("Class: IN");
+            } else if (classType == 2) {
+                //System.out.println("Class: CS");
+            } else if (classType == 3) {
+                //System.out.println("Class: CH");
+            } else if (classType == 4) {
+                // System.out.println("Class: HS");
+            }
+
+
+            int jj = counter + 1;
+            //System.out.println(jj);
+            for (int i = 0; i < 4; i++) {
+                int r = jj + i;
+                //            System.out.println(r);
+                //            System.out.println(String.format("%x", data[r]) + " " );
+            }
+
+            counter++;
+            //System.out.println(counter);
+            int ttl1 = (int) data[counter];
+            counter++;
+            int ttl2 = (int) data[counter];
+
+            counter++;
+            int ttl3 = (int) data[counter];
+            counter++;
+            int ttl4 = (int) data[counter];
+
+            //System.out.println(String.format("%x", ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL)) + " " );
+
+            long ttl = ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL);
+            System.out.println("Time to live: " + ttl);
+
+            counter++;
+            int rdl1 = (int) data[counter];
+            counter++;
+            int rdl2 = (int) data[counter];
+
+            int rdataLength = ((rdl1 << 8) & 0xFFFF) | (rdl2 & 0xFF);
+
+            System.out.println("Data Length: " + rdataLength);
+
+            if (classType == 1 && type == 1) {
+                String ip = "";
+                for (int i = 0; i < rdataLength; i++) {
+                    counter++;
+                    int ipDigit = (int) data[counter] & 0xff;
+                    String ipBit = Integer.toString(ipDigit);
+                    ip = ip + ipBit + ".";
+                }
+                ip = ip.substring(0, ip.length() - 1);
+                System.out.println("Address: " + ip);
+
+
+            }
         }
 
-        dName = dName.substring(0, dName.length()-1);
-        System.out.println(dName);
 
-        counter++;
-        int t1 = (int) data[counter];
-        counter++;
-        int t2 = (int) data[counter];
-        int type = ((t1 << 8) & 0xFFFF) | (t2 & 0xFF);
-        if (type == 1) {
-            System.out.println("Type: A (Host Address)");
-        }
-
-        counter++;
-        int c1 = (int) data[counter];
-        counter++;
-        int c2 = (int) data[counter];
-        int classType = ((c1 << 8) & 0xFFFF) | (c2 & 0xFF);
-        if (classType == 1) {
-            System.out.println("Class: IN");
-        }
-        else if (classType == 2) {
-            //System.out.println("Class: CS");
-        }
-        else if (classType == 3) {
-            //System.out.println("Class: CH");
-        }
-        else if (classType == 4) {
-            // System.out.println("Class: HS");
-        }
-
-
-        int jj = counter + 1;
-        //System.out.println(jj);
-        for (int i = 0; i < 4; i++) {
-            int r = jj + i;
-//            System.out.println(r);
-//            System.out.println(String.format("%x", data[r]) + " " );
-        }
-
-        counter = counter + 1;
-        //System.out.println(counter);
-        int ttl1 = (int) data[counter];
-        counter = counter + 1;
-        int ttl2 = (int) data[counter];
-
-        counter = counter + 1;
-        int ttl3 = (int) data[counter];
-        counter = counter + 1;
-        int ttl4 = (int) data[counter];
-
-        //System.out.println(String.format("%x", ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL)) + " " );
-
-        long ttl = ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL);
-        System.out.println("TIme to live: " + ttl);
     }
 
 
