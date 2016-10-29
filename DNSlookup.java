@@ -130,6 +130,18 @@ public class DNSlookup {
 		DatagramPacket packet = new DatagramPacket(buf, buf.length,iAddress, 53);
 		socket.send(packet);
 
+		byte[] data = new byte[1024];
+		DatagramPacket rpacket = new DatagramPacket(data, data.length);
+		socket.receive(rpacket);
+		System.out.println("\n\nReceived: " + rpacket.getLength() + " bytes");
+
+		for (int i = 0; i < rpacket.getLength(); i++) {
+			System.out.print(" 0x" + String.format("%x", data[i]) + " " );
+		}
+		System.out.println("\n");
+
+		DNSResponse returnedData = new DNSResponse(data, data.length);
+
 	}
 
 	private static void usage() {

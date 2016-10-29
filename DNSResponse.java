@@ -28,8 +28,8 @@ public class DNSResponse {
     // When in trace mode you probably want to dump out all the relevant information in a response
 
 	void dumpResponse() {
-		
 
+        System.out.println("hello client");
 
 	}
 
@@ -37,7 +37,7 @@ public class DNSResponse {
     // probably the minimum that you need.
 
 	public DNSResponse (byte[] data, int len) throws Exception {
-        System.out.println("hello client");
+
 	    
 	    // The following are probably some of the things 
 	    // you will need to do.
@@ -54,11 +54,8 @@ public class DNSResponse {
 
 	    // Extract list of answers, name server, and additional information response 
 	    // records
-        DatagramSocket socket = new DatagramSocket();
-        DatagramPacket packet = new DatagramPacket(data, len);
-        socket.receive(packet);
-        String received = new String(packet.getData(), 0, packet.getLength());
-        System.out.println("Quote of the Moment: " + received);
+        System.out.println("CLIENT");
+
 
     }
 
