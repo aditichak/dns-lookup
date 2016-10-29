@@ -1,5 +1,8 @@
 
 import java.net.InetAddress;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
+
 
 
 
@@ -33,7 +36,8 @@ public class DNSResponse {
     // The constructor: you may want to add additional parameters, but the two shown are 
     // probably the minimum that you need.
 
-	public DNSResponse (byte[] data, int len) {
+	public DNSResponse (byte[] data, int len) throws Exception {
+        System.out.println("hello client");
 	    
 	    // The following are probably some of the things 
 	    // you will need to do.
@@ -50,7 +54,13 @@ public class DNSResponse {
 
 	    // Extract list of answers, name server, and additional information response 
 	    // records
-	}
+        DatagramSocket socket = new DatagramSocket();
+        DatagramPacket packet = new DatagramPacket(data, len);
+        socket.receive(packet);
+        String received = new String(packet.getData(), 0, packet.getLength());
+        System.out.println("Quote of the Moment: " + received);
+
+    }
 
 
     // You will probably want a methods to extract a compressed FQDN, IP address
