@@ -24,6 +24,10 @@ public class DNSResponse {
     private int nsCount = 0;              // number of nscount response records
     private int additionalCount = 0;      // number of additional (alternate) response records
     private boolean authoritative = false;// Is this an authoritative record
+    private int questionCount = 0;
+    private boolean isResponse = false;
+    private boolean truncation = false;
+    private int responseCode = 0;
 
     // Note you will almost certainly need some additional instance variables.
 
@@ -54,250 +58,294 @@ public class DNSResponse {
 
 	public DNSResponse (byte[] data, int len) throws Exception {
 
-	    
-	    // The following are probably some of the things 
-	    // you will need to do.
-	    // Extract the query ID
-
-	    // Make sure the message is a query response and determine
-	    // if it is an authoritative response or note
-
-	    // determine answer count
-
-	    // determine NS Count
-
-	    // determine additional record count
-
-	    // Extract list of answers, name server, and additional information response 
-	    // records
-        int first = (int) data[0];
-        int sec = (int) data[1];
-        queryID = ((first << 8) & 0xFFFF) | (sec & 0xFF);
-        //System.out.println(queryID);
-
-        int answer = (int) data[2];
-        answer = (answer >> 7) & 1;
-        //System.out.println(answer);
-        if (answer != 1) {
-            //System.out.println("ERROR");
-        }
-
-        int auth = data[2];
-        auth = (auth >> 2) & 1;
-        //System.out.println(auth);
-
-        if (auth == 0) {
-            authoritative = true;
-        }
-        else {
-            authoritative = false;
-        }
-
-        //bool
-
-        int truncated = data[2];
-        truncated = (truncated >> 1) & 1;
-        //System.out.println(truncated);
-
-        int responseCode = data[3];
-        responseCode = responseCode & 15;
-        //System.out.println(responseCode);
-
-        int fpart = (int) data[4];
-        int spart = (int) data[5];
-        int questionCount = ((fpart << 8) & 0xFFFF) | (spart & 0xFF);
-        //System.out.println(questionCount);
-
-        int one = (int) data[6];
-        int two = (int) data[7];
-        int answerCount = ((one << 8) & 0xFFFF) | (two & 0xFF);
-        //System.out.println(answerCount);
-
-        int o = (int) data[8];
-        int t = (int) data[9];
-        int nsCount = ((o << 8) & 0xFFFF) | (t & 0xFF);
-       // System.out.println(nsCount);
-
-        int a = (int) data[10];
-        int b = (int) data[11];
-        int additionalCount = ((a << 8) & 0xFFFF) | (b & 0xFF);
-        //System.out.println(additionalCount);
-
-        int counter = 12;
-        String domainName = "";
-        int length;
-        for (int i = 0; i <questionCount; i++) {
-            while (data[counter] != 0) {
-                length = (int) data[counter];
-
-                for (int k = 0; k < length; k++) {
-
-                    counter++;
-                   char part =  (char) data[counter];
-                    String dom = Character.toString(part);
-                    domainName = domainName + dom;
-                }
-                domainName += ".";
-                counter++;
-
-            }
-
-            domainName = domainName.substring(0, domainName.length()-1);
-            //System.out.println(domainName);
-
-            counter++;
-            int t1 = (int) data[counter];
-            counter++;
-            int t2 = (int) data[counter];
-            int type = ((t1 << 8) & 0xFFFF) | (t2 & 0xFF);
-            if (type == 1) {
-                //System.out.println("Type: A (Host Address)");
-            }
-
-            counter++;
-            int c1 = (int) data[counter];
-            counter++;
-            int c2 = (int) data[counter];
-            int classType = ((c1 << 8) & 0xFFFF) | (c2 & 0xFF);
-            if (classType == 1) {
-                //System.out.println("Class: IN");
-            }
-            else if (classType == 2) {
-                //System.out.println("Class: CS");
-            }
-            else if (classType == 3) {
-                //System.out.println("Class: CH");
-            }
-            else if (classType == 4) {
-               // System.out.println("Class: HS");
-            }
-
-
-        }
-        for (int yaml = 0; yaml < answerCount; yaml++) {
-            counter++;
-
-            int compressionPointer = (int) data[counter];
-            compressionPointer = (compressionPointer >> 6) & 3;
-            if (compressionPointer == 0b00) {
-                int lengths = (int) data[counter];
-            }
-
-            int compression = 0;
-            if (compressionPointer == 3) {
-                int compressionFirst = (((int) data[counter]) & 63) << 6;
-                counter++;
-                int compressionSecond = (int) data[counter] & 0xFF;
-                compression = compressionFirst | compressionSecond;
-
-            }
-            System.out.println("compress" + compression);
-
-            String dName = "";
-            while (data[compression] != 0) {
-                length = (int) data[compression];
-
-                for (int k = 0; k < length; k++) {
-
-                    compression++;
-                    char part = (char) data[compression];
-                    String dom = Character.toString(part);
-                    dName = dName + dom;
-                }
-                dName += ".";
-                compression++;
-
-            }
-
-            dName = dName.substring(0, dName.length() - 1);
-            System.out.println(dName);
-
-            counter++;
-            int t1 = (int) data[counter];
-            counter++;
-            int t2 = (int) data[counter];
-            int type = ((t1 << 8) & 0xFFFF) | (t2 & 0xFF);
-            if (type == 1) {
-                System.out.println("Type: A (Host Address)");
-            }
-
-            counter++;
-            int c1 = (int) data[counter];
-            counter++;
-            int c2 = (int) data[counter];
-            int classType = ((c1 << 8) & 0xFFFF) | (c2 & 0xFF);
-            if (classType == 1) {
-                System.out.println("Class: IN");
-            } else if (classType == 2) {
-                //System.out.println("Class: CS");
-            } else if (classType == 3) {
-                //System.out.println("Class: CH");
-            } else if (classType == 4) {
-                // System.out.println("Class: HS");
-            }
-
-
-            int jj = counter + 1;
-            //System.out.println(jj);
-            for (int i = 0; i < 4; i++) {
-                int r = jj + i;
-                //            System.out.println(r);
-                //            System.out.println(String.format("%x", data[r]) + " " );
-            }
-
-            counter++;
-            //System.out.println(counter);
-            int ttl1 = (int) data[counter];
-            counter++;
-            int ttl2 = (int) data[counter];
-
-            counter++;
-            int ttl3 = (int) data[counter];
-            counter++;
-            int ttl4 = (int) data[counter];
-
-            //System.out.println(String.format("%x", ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL)) + " " );
-
-            long ttl = ((ttl1 << 24) & 0xFFFFFFFFL) | ((ttl2 << 16) & 0xFFFFFFL) | ((ttl3 << 8) & 0xFFFFL) | (ttl4 & 0xFFL);
-            System.out.println("Time to live: " + ttl);
-
-            counter++;
-            int rdl1 = (int) data[counter];
-            counter++;
-            int rdl2 = (int) data[counter];
-
-            int rdataLength = ((rdl1 << 8) & 0xFFFF) | (rdl2 & 0xFF);
-
-            System.out.println("Data Length: " + rdataLength);
-
-            if (classType == 1 && type == 1) {
-                String ip = "";
-                for (int i = 0; i < rdataLength; i++) {
-                    counter++;
-                    int ipDigit = (int) data[counter] & 0xff;
-                    String ipBit = Integer.toString(ipDigit);
-                    ip = ip + ipBit + ".";
-                }
-                ip = ip.substring(0, ip.length() - 1);
-                System.out.println("Address: " + ip);
-
-
-            }
-        }
-
-
+	    this.extractResponseHeader(data);
+        int offset = this.skipQuerySection(12, data);
+        this.extractAnswerSection(offset, data);
     }
-
-
-
-    // You will probably want a methods to extract a compressed FQDN, IP address
-    // cname, authoritative DNS servers and other values like the query ID etc.
 
 
     // You will also want methods to extract the response records and record
     // the important values they are returning. Note that an IPV6 reponse record
     // is of type 28. It probably wouldn't hurt to have a response record class to hold
     // these records. 
+
+    private void extractResponseHeader(byte[] data) {
+    	    //                                         1  1  1  1  1  1
+    //   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                      ID                       |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                    QDCOUNT                    |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                    ANCOUNT                    |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                    NSCOUNT                    |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                    ARCOUNT                    |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+        this.queryID = bytesToInt(data[0], data[1]);
+
+        // determine whether this is a response or query packet
+        int qr = ((int) data[2] >> 7) & 1;
+		isResponse = intToBool(qr); 
+		// System.out.println(isResponse);
+		if(!isResponse) {
+			// TODO: error handling
+			System.out.println("ERROR");
+		}
+
+        int aa = ((int) data[2] >> 2) & 1;
+        authoritative = intToBool(aa);
+
+        int tc  = (data[2] >> 1) & 1;
+        truncation = intToBool(tc);
+        // TODO: what if response is truncated
+        //System.out.println(truncated);
+        responseCode = data[3] & 15;
+      
+        this.questionCount = bytesToInt(data[4], data[5]);
+        // System.out.println("questionCount :" + questionCount);
+        
+        answerCount = bytesToInt(data[6], data[7]);
+        // System.out.println("answerCount :" + answerCount);
+       
+       	nsCount = bytesToInt(data[8], data[9]);
+        additionalCount = bytesToInt(data[8], data[9]);
+        // System.out.println("additionalCount: " + additionalCount);
+
+    }
+
+
+    private int skipQuerySection (int queryOffset, byte[] data) {
+        int length;
+        for (int i = 0; i < questionCount; i++) {
+        	// iterate throuugh the domain name
+            while (data[queryOffset] != 0) {
+                length = (int) data[queryOffset];
+                for (int k = 0; k < length; k++) {
+                    queryOffset++;
+                }
+                queryOffset++;
+            }
+            // skip the query class (2 bytes) and query type (2 bytes)
+            queryOffset = queryOffset + 4;
+
+		}
+        return queryOffset;
+    }
+
+
+    private int extractAnswerSection(int offset, byte[] data) {
+    	
+    // 	    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                                               |
+    // /                                               /
+    // /                      NAME                     /
+    // |                                               |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                      TYPE                     |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                     CLASS                     |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                      TTL                      |
+    // |                                               |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    // |                   RDLENGTH                    |
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+    // /                     RDATA                     /
+    // /                                               /
+    // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+        for (int i = 0; i < answerCount; i++) {
+            offset++;
+            // get fqdn pointer
+            int length;
+            int fqdnPointer = offset;
+            // check of the data is compressed
+    		int isCompressed = ((int) data[offset] >> 6) & 3;
+	            if (isCompressed == 0b00) {
+	                length = (int) data[offset];
+	            } else if(isCompressed == 3) {
+           			fqdnPointer = this.getFqdnPointer(offset, data);
+           		}
+           
+           	System.out.println("fp: " + fqdnPointer);
+            offset++;
+            // extract fqdn
+         	String fqdn = this.extractFqdn(fqdnPointer, data);
+            System.out.println(fqdn);
+
+            //extract type
+            offset++;
+           	int answerType = bytesToInt(data[offset], data[offset + 1]);
+    		offset++;
+            String type = this.intToType(answerType);
+            System.out.println("Type: " + type);
+           
+            // extract class
+            offset++;
+            int classType = bytesToInt(data[offset], data[offset+1]);
+            offset++;
+            String ansClass = intToClass(classType);
+            System.out.println("class: " + ansClass);
+            
+            // extract ttl
+            offset++;
+            long ttl = bytesToLong(data[offset], data[offset+1], data[offset+2], data[offset+3]);
+            offset = offset + 3;
+            System.out.println("Time to live: " + ttl);
+            offset++;
+    	        
+    		
+           int rdataLength = bytesToInt(data[offset], data[offset+1]);
+           offset++;
+
+            // System.out.println("Data Length: " + rdataLength);
+
+            // extract IP 
+            if (classType == 1 && answerType == 1) {
+                String ip = this.extractIP(offset, rdataLength, data);
+                System.out.println("Address: " + ip);
+                offset = offset + rdataLength;
+            }
+        }
+    	return offset;
+    }
+
+
+
+
+    private String intToType(int answerType) {
+    	String type;
+        switch(answerType) {
+			case 1:
+				type = "A";
+				break;   
+			case 2 :
+				type = "NS";	     
+			break; 
+			case 3 :
+				type = "MD";	     
+			break; 
+			case 4 :
+				type = "MF";	     
+			break; 
+			case 5 :
+				type = "CNAME";	     
+			break; 
+			case 6 :
+				type = "SOA";	     
+			break; 
+			case 7:
+				type = "MB";	     
+			break; 
+			case 8 :
+				type = "MG";	     
+			break; 
+			case 9 :
+				type = "MR";	     
+			break; 
+			case 10 :
+				type = "NULL";	     
+			break; 
+			case 11 :
+				type = "WKS";	     
+			break; 
+			case 12 :
+				type = "PTR";	     
+			break; 
+			case 13 :
+				type = "HINFO";	     
+			break; 
+			case 14 :
+				type = "MINFO";	     
+			break; 
+			case 15 :
+				type = "MX";	     
+			break; 
+			case 16 :
+				type = "TXT";	     
+			break; 
+			default : 
+				type = "ERROR: Not a valid type.";
+			}
+
+		return type;
+    }
+
+    private String intToClass(int classType) {
+    	String ansClass;
+        switch(classType) {
+			case 1:
+				ansClass = "IN";
+				break;   
+			case 2 :
+				ansClass = "CS";	     
+			break; 
+			case 3 :
+				ansClass = "CH";	     
+			break; 
+			case 4 :
+				ansClass = "HS";	     
+			break; 
+			default :
+				ansClass = "ERROR: invalid class type";	     
+		}
+
+		return ansClass;
+    }
+
+
+    private int getFqdnPointer(int offset, byte[] data) {
+        return ((((int) data[offset]) & 63) << 6) | ((int) data[offset + 1] & 0xFF);   
+    }
+
+    private String extractFqdn(int fqdnPointer, byte[] data) {
+    	   String fqdn = "";
+    	   int length = 0;
+            while (data[fqdnPointer] != 0) {
+                length = (int) data[fqdnPointer];
+                for (int k = 0; k < length; k++) {
+
+                    fqdnPointer++;
+                    fqdn = fqdn + Character.toString((char) data[fqdnPointer]);
+                }
+                fqdn += ".";
+                fqdnPointer++;
+
+            }
+            return fqdn.substring(0, fqdn.length() - 1);
+    }
+
+    private String extractIP(int offset, int length, byte[] data){
+    	String ip = "";
+        for (int j = 0; j < length; j++) {
+            offset++;
+            int ipDigit = (int) data[offset] & 0xff;
+            String ipBit = Integer.toString(ipDigit);
+            ip = ip + ipBit + ".";
+        }
+        return ip.substring(0, ip.length() - 1);
+    }
+
+
+    public static int bytesToInt(byte higherOrderByte, byte lowerOrderByte) {
+    	return (((int) higherOrderByte << 8) & 0xFFFF) | ( (int) lowerOrderByte & 0xFF);
+    }
+
+      public static long bytesToLong(byte byte1, byte byte2, byte byte3, byte byte4) {
+    	return (((long) byte1 << 24) & 0xFFFFFFFFL) | (((long) byte2 << 16) & 0xFFFFFFL) | (((long) byte3 << 8) & 0xFFFFL) | ((long) byte4 & 0xFFL);
+    }
+
+    public static boolean intToBool(int convert) {
+    	if (convert == 1) {
+        	return true;
+        }
+        return false;
+    }
 }
 
 
