@@ -60,7 +60,7 @@ public class DNSResponse {
 
 	    this.extractResponseHeader(data);
         int offset = this.skipQuerySection(12, data);
-        this.extractAnswerSection(offset, data);
+        offset = this.extractAnswerSection(offset, data);
     }
 
 
@@ -107,14 +107,14 @@ public class DNSResponse {
         responseCode = data[3] & 15;
       
         this.questionCount = bytesToInt(data[4], data[5]);
-        // System.out.println("questionCount :" + questionCount);
+        System.out.println("questionCount :" + questionCount);
         
         answerCount = bytesToInt(data[6], data[7]);
-        // System.out.println("answerCount :" + answerCount);
+        System.out.println("answerCount :" + answerCount);
        
        	nsCount = bytesToInt(data[8], data[9]);
         additionalCount = bytesToInt(data[8], data[9]);
-        // System.out.println("additionalCount: " + additionalCount);
+        System.out.println("additionalCount: " + additionalCount);
 
     }
 
