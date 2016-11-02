@@ -67,9 +67,9 @@ public class DNSlookup {
 		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
 		for (int i = 0; i < recievedPacket.getLength(); i++) {
-			System.out.print(" 0x" + String.format("%x", data[i]) + " " );
+			//System.out.print(" 0x" + String.format("%x", data[i]) + " " );
 		}
-		System.out.println("\n");
+		//System.out.println("\n");
 
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 		returnedData.checkQueryId(buf[0], buf[1]);
@@ -166,14 +166,14 @@ public class DNSlookup {
 
 		// write the query fqdn to the packet
 		String[] domainParts = fqdn.split("\\.");
-		System.out.println(fqdn + " has " + domainParts.length + " parts");
+		//System.out.println(fqdn + " has " + domainParts.length + " parts");
 
 		// the query section starts at byte 12 of the packet data.
 		int counter = 12;
 		for (int i = 0; i<domainParts.length; i++) {
-			System.out.println("Writing: " + domainParts[i]);
+			//System.out.println("Writing: " + domainParts[i]);
 			byte[] domainBytes = domainParts[i].getBytes("UTF-8");
-			System.out.println(domainBytes.length);
+			//System.out.println(domainBytes.length);
 
 			buf[counter] = (byte) domainBytes.length;
 
