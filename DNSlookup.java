@@ -64,7 +64,7 @@ public class DNSlookup {
 		byte[] data = new byte[1024];
 		DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
 		socket.receive(recievedPacket);
-		System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
+		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
 		for (int i = 0; i < recievedPacket.getLength(); i++) {
 			System.out.print(" 0x" + String.format("%x", data[i]) + " " );
@@ -91,9 +91,9 @@ public class DNSlookup {
 		setPacketHeader(buf);
 		setPacketQuery(buf, fqdn);
 
-		System.out.println("Sending: " + buf.length + " bytes");
+		//System.out.println("Sending: " + buf.length + " bytes");
 		for (int i =0; i< buf.length; i++) {
-			System.out.print("0x" + String.format("%x", buf[i]) + " " );
+			//System.out.print("0x" + String.format("%x", buf[i]) + " " );
 		}
 
 		return buf;
