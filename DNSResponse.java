@@ -473,11 +473,14 @@ public class DNSResponse {
             //extract IP
             if (classType == 1 && (answerType == 1 || answerType == 28)) {
                 if (answerType == 28) {
-                    System.out.println("IPV6!");
+                    ip = this.extractIPV6(offset, rdataLength, data);
                 }
-                ip = this.extractIP(offset, rdataLength, data);
+                else {
+                    ip = this.extractIP(offset, rdataLength, data);
+                }
                 offset = offset + rdataLength;
             }
+
 
             Map<String, String> record = new HashMap<String, String>();
             record.put("recordName", domainName);
@@ -608,6 +611,24 @@ public class DNSResponse {
             int ipDigit = (int) data[offset] & 0xff;
             String ipBit = Integer.toString(ipDigit);
             ip = ip + ipBit + ".";
+        }
+        return ip.substring(0, ip.length() - 1);
+    }
+
+    private String extractIPV6(int offset, int length, byte[] data){
+        String ip = "";
+        int j = 0;
+
+        while (j < length) {
+            offset++;
+            String ipDigit1 = String.format("%02x", data[offset]);
+            offset++;
+            String ipDigit2 = String.format("%02x", data[offset]);
+            String temp = ipDigit1 + ipDigit2;
+            temp = temp.replaceFirst("^0+(?!$)", "");
+            ip = ip + temp;
+            ip = ip + ":";
+            j+=2;
         }
         return ip.substring(0, ip.length() - 1);
     }
