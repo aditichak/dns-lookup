@@ -118,8 +118,8 @@ public class DNSlookup {
 	}
 
 	private static byte[] setPacketData(String fqdn) throws Exception{
+		byte[] buf = new byte[18 + fqdn.length()];
 
-		byte[] buf = new byte[1024];
 		setPacketHeader(buf);
 		setPacketQuery(buf, fqdn);
 
