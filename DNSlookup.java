@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.*;
 
 
 /**
@@ -73,7 +74,14 @@ public class DNSlookup {
 
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 		returnedData.checkQueryId(buf[0], buf[1]);
+		if (tracingOn) {
+			System.out.println("\n\n");
+			System.out.println("Query ID");
+		}
 
+		for (Map m : returnedData.answerRecords) {
+			System.out.println(fqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
+		}
 	}
 
 	private static void usage() {
@@ -122,11 +130,12 @@ public class DNSlookup {
 		
 		//set ID
 		// TODO: randomize this!
-		// Random r = new Random();
-		// int n = r.nextInt(65536);
-		
-		buf[0] = (byte) 18;
-		buf[1] = (byte) 52;		
+		Random r = new Random();
+		int random = r.nextInt(65536);
+
+		buf[0] = (byte) ((random >> 8) & 0xff);
+		buf[1] = (byte) (random & 0xff);
+
 		// Set QR, Opcode, AA, TC, and RD to 0
 		buf[2] = (byte) 0;
 

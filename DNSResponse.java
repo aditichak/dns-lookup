@@ -4,6 +4,7 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.util.*;
 
 
 
@@ -28,6 +29,9 @@ public class DNSResponse {
     private boolean isResponse = false;
     private boolean truncation = false;
     private int responseCode = 0;
+    ArrayList<Map> answerRecords = new ArrayList<Map>();
+    private ArrayList<Map> additionalRecords = new ArrayList<Map>();
+    private ArrayList<Map> authoritativeRecords = new ArrayList<Map>();
 
     // Note you will almost certainly need some additional instance variables.
 
@@ -163,23 +167,6 @@ public class DNSResponse {
     // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
         System.out.println("Asnwer section starts");
         for (int i = 0; i < answerCount; i++) {
-//            offset++;
-//            // get fqdn pointer
-//            int length;
-//            int fqdnPointer = offset;
-//            // check of the data is compressed
-//    		int isCompressed = ((int) data[offset] >> 6) & 3;
-//	            if (isCompressed == 0b00) {
-//	                length = (int) data[offset];
-//	            } else if(isCompressed == 3) {
-//           			fqdnPointer = this.getFqdnPointer(offset, data);
-//           		}
-//
-//           	//System.out.println("fp: " + fqdnPointer);
-//            offset++;
-//            // extract fqdn
-//         	String fqdn = this.extractFqdn(fqdnPointer, data);
-//            System.out.println(fqdn);
 
             offset++;
             String domainName = "";
@@ -246,12 +233,23 @@ public class DNSResponse {
 
             // System.out.println("Data Length: " + rdataLength);
 
+            String ip = "";
             // extract IP 
             if (classType == 1 && answerType == 1) {
-                String ip = this.extractIP(offset, rdataLength, data);
+                ip = this.extractIP(offset, rdataLength, data);
                 System.out.println("Address: " + ip);
                 offset = offset + rdataLength;
             }
+
+            Map<String, String> record = new HashMap<String, String>();
+            record.put("recordName", domainName);
+            record.put("ttl", Long.toString(ttl));
+            record.put("recordType", type);
+            record.put("recordValue", ip);
+//            for (String key : record.keySet()) {
+//                System.out.println("Key = " + key + " - " + record.get(key));
+//            }
+            answerRecords.add(record);
         }
     	return offset;
     }
@@ -301,7 +299,7 @@ public class DNSResponse {
 //            System.out.println("Name: " + fqdn);
 
             offset++;
-            String domainName = "";
+            String name = "";
             int fqdnPointer = offset;
             boolean hasBeenCompressed = false;
 
@@ -327,16 +325,16 @@ public class DNSResponse {
                 }
                 for (int y = 0; y < length; y++) {
                     fqdnPointer++;
-                    domainName = domainName + Character.toString((char) data[fqdnPointer]);
+                    name = name + Character.toString((char) data[fqdnPointer]);
                     if (!hasBeenCompressed) {
                         offset++;
                     }
                 }
-                domainName += ".";
+                name += ".";
                 fqdnPointer++;
             }
-            domainName = domainName.substring(0, domainName.length() - 1);
-            System.out.println("Name: " + domainName);
+            name = name.substring(0, name.length() - 1);
+            System.out.println("Name: " + name);
 
 
             //extract type
@@ -368,6 +366,7 @@ public class DNSResponse {
 
             System.out.println("Data Length: " + rdataLength);
 
+            String domainName = "";
              //extract IP
             if (classType == 1 && answerType == 1) {
                 String ip = this.extractIP(offset, rdataLength, data);
@@ -414,6 +413,15 @@ public class DNSResponse {
 
 
             }
+            Map<String, String> record = new HashMap<String, String>();
+            record.put("recordName", name);
+            record.put("ttl", Long.toString(ttl));
+            record.put("recordType", type);
+            record.put("recordValue", domainName);
+//            for (String key : record.keySet()) {
+//                System.out.println("Key = " + key + " - " + record.get(key));
+//            }
+            authoritativeRecords.add(record);
         }
         return offset;
     }
@@ -486,13 +494,23 @@ public class DNSResponse {
             int rdataLength = bytesToInt(data[offset], data[offset + 1]);
             offset ++;
 
-
+            String ip = "";
             //extract IP
             if (classType == 1 && answerType == 1) {
-                String ip = this.extractIP(offset, rdataLength, data);
+                ip = this.extractIP(offset, rdataLength, data);
                 System.out.println("adAddress: " + ip);
                 offset = offset + rdataLength;
             }
+
+            Map<String, String> record = new HashMap<String, String>();
+            record.put("recordName", domainName);
+            record.put("ttl", Long.toString(ttl));
+            record.put("recordType", type);
+            record.put("recordValue", ip);
+//            for (String key : record.keySet()) {
+//                System.out.println("Key = " + key + " - " + record.get(key));
+//            }
+            additionalRecords.add(record);
 
         }
         return offset;
