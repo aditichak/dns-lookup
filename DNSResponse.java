@@ -251,9 +251,45 @@ public class DNSResponse {
 
             String ip = "";
             // extract IP 
-            if (classType == 1 && answerType == 1) {
-                ip = this.extractIP(offset, rdataLength, data);
+            if (classType == 1 && (answerType == 1 || answerType == 28 )) {
+                if (answerType == 28) {
+                    ip = this.extractIPV6(offset, rdataLength, data);
+                }
+                else {
+                    ip = this.extractIP(offset, rdataLength, data);
+                }
                 offset = offset + rdataLength;
+            }
+
+            if (classType == 1 && answerType == 5) {
+                offset++;
+                fqdnPointer = offset;
+                hasBeenCompressed = false;
+                while (data[fqdnPointer] != 0){
+                    int isCompressed = ((int) data[fqdnPointer] >> 6) & 3;
+                    int length = 0;
+
+                    if (isCompressed == 0) {
+                        length = (int) data[fqdnPointer];
+
+                    }
+
+                    else if (isCompressed == 3) {
+                        fqdnPointer = this.getFqdnPointer(fqdnPointer, data);
+                        length = (int) data[fqdnPointer];
+                        if (!hasBeenCompressed) {
+                            hasBeenCompressed = true;
+                        }
+                    }
+                    for (int y = 0; y < length; y++) {
+                        fqdnPointer++;
+                        ip = ip + Character.toString((char) data[fqdnPointer]);
+                    }
+                    ip += ".";
+                    fqdnPointer++;
+                }
+                offset = offset + rdataLength - 1;
+                ip = ip.substring(0, ip.length() - 1);
             }
 
             Map<String, String> record = new HashMap<String, String>();
