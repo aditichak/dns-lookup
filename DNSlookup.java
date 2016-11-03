@@ -75,26 +75,37 @@ public class DNSlookup {
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 		returnedData.checkQueryId(buf[0], buf[1]);
 		if (tracingOn) {
-			System.out.print("\n\n");
-			System.out.println("Query ID     " + returnedData.bytesToInt(buf[0], buf[1]) + " --> " + args[0]);
-			System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
-			System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
-			for (Map m : returnedData.getAnswerRecords()) {
-				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
-			}
-			System.out.println("  Nameservers " + "(" + returnedData.getNsCount() + ")");
-			for (Map m : returnedData.getAuthoritativeRecords()) {
-				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
-			}
-			System.out.println("  Additional Information " + "(" + returnedData.getAdditionalCount() + ")");
-			for (Map m : returnedData.getAdditionalRecords()) {
-				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
-			}
+			printQuery(returnedData, buf[0], buf[1], args[0]);
+		}
+
+		socket.close();
+		while (returnedData.getAnswerCount() == 0) {
+			byte[] sending = setPacketData(fqdn);
+
+			ArrayList<Map> a = returnedData.getAdditionalRecords();
+
+			Map<String, String> m = a.get(0);
+			String queryIp = m.get("recordValue");
+			InetAddress ip = InetAddress.getByName(queryIp);
+			// Creat a socket and send the packet
+			DatagramSocket socket1 = new DatagramSocket();
+			DatagramPacket packet1 = new DatagramPacket(sending, sending.length, ip, 53);
+			socket1.send(packet1);
+
+			byte[] data1 = new byte[1024];
+			DatagramPacket recievedPacket1 = new DatagramPacket(data1, data1.length);
+			socket1.receive(recievedPacket1);
+
+			returnedData = new DNSResponse(data1, data1.length);
+			returnedData.checkQueryId(sending[0], sending[1]);
+			printQuery(returnedData, sending[0], sending[1], queryIp);
+
 		}
 
 		for (Map m : returnedData.getAnswerRecords()) {
 			System.out.println(fqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
 		}
+
 	}
 
 	private static void usage() {
@@ -172,7 +183,23 @@ public class DNSlookup {
 		buf[11] = (byte) 0;
 	}
 
-
+	private static void printQuery(DNSResponse returnedData, byte buf1, byte buf2, String rootName) {
+		System.out.print("\n\n");
+		System.out.println("Query ID     " + returnedData.bytesToInt(buf1, buf2) + " --> " + rootName);
+		System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
+		System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
+		for (Map m : returnedData.getAnswerRecords()) {
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+		}
+		System.out.println("  Nameservers " + "(" + returnedData.getNsCount() + ")");
+		for (Map m : returnedData.getAuthoritativeRecords()) {
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+		}
+		System.out.println("  Additional Information " + "(" + returnedData.getAdditionalCount() + ")");
+		for (Map m : returnedData.getAdditionalRecords()) {
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+		}
+	}
 	private static void setPacketQuery(byte[] buf, String fqdn) throws Exception{
 				  //                                   1  1  1  1  1  1
     //   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
