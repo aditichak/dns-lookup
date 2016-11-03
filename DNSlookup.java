@@ -32,6 +32,8 @@ public class DNSlookup {
 	static final int MIN_PERMITTED_ARGUMENT_COUNT = 2;
 	static boolean tracingOn = false;
 	static InetAddress rootNameServer;
+	static String rootIP;
+	static String orginialFqdn;
 
 	/**
 	 * @param args
@@ -47,15 +49,22 @@ public class DNSlookup {
 		}
 
 		rootNameServer = InetAddress.getByName(args[0]);
+		rootIP = args[0];
 		fqdn = args[1];
+		orginialFqdn = args[1];
 
 		if (argCount == 3 && args[2].equals("-t"))
 				tracingOn = true;
 
 		// Start adding code here to initiate the lookup
 
-		byte[] buf = setPacketData(fqdn);
+		InetAddress fip = recurse (fqdn, rootNameServer);
+		System.out.println(fip);
 
+	}
+
+	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) throws Exception{
+		byte[] buf = setPacketData(fqdn);
 		// Creat a socket and send the packet
 		DatagramSocket socket = new DatagramSocket();
 		DatagramPacket packet = new DatagramPacket(buf, buf.length,rootNameServer, 53);
@@ -65,46 +74,58 @@ public class DNSlookup {
 		byte[] data = new byte[1024];
 		DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
 		socket.receive(recievedPacket);
+		socket.close();
 		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
-		for (int i = 0; i < recievedPacket.getLength(); i++) {
-			//System.out.print(" 0x" + String.format("%x", data[i]) + " " );
-		}
-		//System.out.println("\n");
-
+//		for (int i = 0; i < recievedPacket.getLength(); i++) {
+//			//System.out.print(" 0x" + String.format("%x", data[i]) + " " );
+//		}
 		DNSResponse returnedData = new DNSResponse(data, data.length);
-		returnedData.checkQueryId(buf[0], buf[1]);
+
 		if (tracingOn) {
-			printQuery(returnedData, buf[0], buf[1], args[0]);
+			printQuery(returnedData, buf[0], buf[1], rootIP);
 		}
 
-		socket.close();
-		while (returnedData.getAnswerCount() == 0) {
-			byte[] sending = setPacketData(fqdn);
+		return returnedData;
+	}
 
-			ArrayList<Map> a = returnedData.getAdditionalRecords();
+	private static InetAddress recurse (String fqdn, InetAddress ip) throws Exception{
+		DNSResponse receivedPacket = sendAndReceive(fqdn, ip);
 
-			Map<String, String> m = a.get(0);
-			String queryIp = m.get("recordValue");
-			InetAddress ip = InetAddress.getByName(queryIp);
-			// Creat a socket and send the packet
-			DatagramSocket socket1 = new DatagramSocket();
-			DatagramPacket packet1 = new DatagramPacket(sending, sending.length, ip, 53);
-			socket1.send(packet1);
-
-			byte[] data1 = new byte[1024];
-			DatagramPacket recievedPacket1 = new DatagramPacket(data1, data1.length);
-			socket1.receive(recievedPacket1);
-
-			returnedData = new DNSResponse(data1, data1.length);
-			returnedData.checkQueryId(sending[0], sending[1]);
-			printQuery(returnedData, sending[0], sending[1], queryIp);
-
+		while (receivedPacket.getAnswerCount() <=0 ) {
+			if (receivedPacket.getAdditionalCount() > 0) {
+				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
+				Map<String, String> m = a.get(0);
+				if (m.get("recordType") == "A") {
+					String queryIp = m.get("recordValue");
+					InetAddress oip = InetAddress.getByName(queryIp);
+					receivedPacket = sendAndReceive(fqdn, oip);
+				}
+				else {
+					//TODO IPV6
+				}
+			}
+			else if (receivedPacket.getNsCount() > 0) {
+				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
+				Map<String, String> m = a.get(0);
+				String name = m.get("recordValue");
+				InetAddress ippp = recurse(name, rootNameServer);
+				receivedPacket = sendAndReceive(fqdn, ippp);
+			}
 		}
 
-		for (Map m : returnedData.getAnswerRecords()) {
-			System.out.println(fqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
+		ArrayList<Map> a = receivedPacket.getAnswerRecords();
+		Map<String, String> m = a.get(0);
+		if (m.get("recordType") == "CN") {
+			return recurse(m.get("recordValue"), rootNameServer);
 		}
+		else if (m.get("recordType") == "A") {
+			String aIp = m.get("recordValue");
+			InetAddress ipp = InetAddress.getByName(aIp);
+			return ipp;
+		}
+		return rootNameServer;
+
 
 	}
 

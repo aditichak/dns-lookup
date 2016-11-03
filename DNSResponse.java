@@ -550,7 +550,7 @@ public class DNSResponse {
 				type = "MF";	     
 			break; 
 			case 5 :
-				type = "CNAME";	     
+				type = "CN";
 			break; 
 			case 6 :
 				type = "SOA";	     
