@@ -29,7 +29,7 @@ public class DNSResponse {
     private boolean isResponse = false;
     private boolean truncation = false;
     private int responseCode = 0;
-    ArrayList<Map> answerRecords = new ArrayList<Map>();
+    private ArrayList<Map> answerRecords = new ArrayList<Map>();
     private ArrayList<Map> additionalRecords = new ArrayList<Map>();
     private ArrayList<Map> authoritativeRecords = new ArrayList<Map>();
 
@@ -43,7 +43,39 @@ public class DNSResponse {
 
 	}
 
-     boolean checkQueryId(byte a, byte b) {
+    public ArrayList<Map> getAdditionalRecords() {
+        return additionalRecords;
+    }
+
+    public ArrayList<Map> getAnswerRecords() {
+        return answerRecords;
+    }
+
+    public ArrayList<Map> getAuthoritativeRecords() {
+        return authoritativeRecords;
+    }
+
+    public int getQueryId() {
+        return queryID;
+    }
+
+    public boolean getAuthoritative() {
+        return this.authoritative;
+    }
+
+    public int getAnswerCount() {
+        return answerCount;
+    }
+
+    public int getNsCount() {
+        return nsCount;
+    }
+
+    public int getAdditionalCount() {
+        return additionalCount;
+    }
+
+    boolean checkQueryId(byte a, byte b) {
 
         int first = (int) a;
         int sec = (int) b;

@@ -75,11 +75,24 @@ public class DNSlookup {
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 		returnedData.checkQueryId(buf[0], buf[1]);
 		if (tracingOn) {
-			System.out.println("\n\n");
-			System.out.println("Query ID");
+			System.out.print("\n\n");
+			System.out.println("Query ID     " + returnedData.bytesToInt(buf[0], buf[1]) + " --> " + args[0]);
+			System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
+			System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
+			for (Map m : returnedData.getAnswerRecords()) {
+				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+			}
+			System.out.println("  Nameservers " + "(" + returnedData.getNsCount() + ")");
+			for (Map m : returnedData.getAuthoritativeRecords()) {
+				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+			}
+			System.out.println("  Additional Information " + "(" + returnedData.getAdditionalCount() + ")");
+			for (Map m : returnedData.getAdditionalRecords()) {
+				System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+			}
 		}
 
-		for (Map m : returnedData.answerRecords) {
+		for (Map m : returnedData.getAnswerRecords()) {
 			System.out.println(fqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
 		}
 	}
