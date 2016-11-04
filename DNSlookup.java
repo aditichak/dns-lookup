@@ -58,9 +58,10 @@ public class DNSlookup {
 
 		// Start adding code here to initiate the lookup
 
-		InetAddress fip = recurse (fqdn, rootNameServer);
-		System.out.println(fip);
-
+		DNSResponse drep = recurse (fqdn, rootNameServer);
+		ArrayList<Map> a = drep.getAnswerRecords();
+		Map<String, String> m = a.get(0);
+		System.out.println(orginialFqdn + " " +  m.get("ttl") + " " +  m.get("recordValue"));
 	}
 
 	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) throws Exception{
@@ -83,13 +84,13 @@ public class DNSlookup {
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 
 		if (tracingOn) {
-			printQuery(returnedData, buf[0], buf[1], rootIP);
+			printQuery(returnedData, buf[0], buf[1], rootIP, fqdn);
 		}
 
 		return returnedData;
 	}
 
-	private static InetAddress recurse (String fqdn, InetAddress ip) throws Exception{
+	private static DNSResponse recurse (String fqdn, InetAddress ip) throws Exception{
 		DNSResponse receivedPacket = sendAndReceive(fqdn, ip);
 
 		while (receivedPacket.getAnswerCount() <=0 ) {
@@ -109,7 +110,11 @@ public class DNSlookup {
 				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
 				Map<String, String> m = a.get(0);
 				String name = m.get("recordValue");
-				InetAddress ippp = recurse(name, rootNameServer);
+				receivedPacket = recurse(name, rootNameServer);
+				ArrayList<Map> ar = receivedPacket.getAuthoritativeRecords();
+				Map<String, String> mr = ar.get(0);
+				String rname = mr.get("recordValue");
+				InetAddress ippp = InetAddress.getByName(rname);
 				receivedPacket = sendAndReceive(fqdn, ippp);
 			}
 		}
@@ -120,11 +125,11 @@ public class DNSlookup {
 			return recurse(m.get("recordValue"), rootNameServer);
 		}
 		else if (m.get("recordType") == "A") {
-			String aIp = m.get("recordValue");
-			InetAddress ipp = InetAddress.getByName(aIp);
-			return ipp;
+//			String aIp = m.get("recordValue");
+//			InetAddress ipp = InetAddress.getByName(aIp);
+			return receivedPacket;
 		}
-		return rootNameServer;
+		return null;
 
 
 	}
@@ -204,9 +209,9 @@ public class DNSlookup {
 		buf[11] = (byte) 0;
 	}
 
-	private static void printQuery(DNSResponse returnedData, byte buf1, byte buf2, String rootName) {
+	private static void printQuery(DNSResponse returnedData, byte buf1, byte buf2, String rootName, String fqdn) {
 		System.out.print("\n\n");
-		System.out.println("Query ID     " + returnedData.bytesToInt(buf1, buf2) + " --> " + rootName);
+		System.out.println("Query ID     " + returnedData.bytesToInt(buf1, buf2) + " " + fqdn + " --> " + rootName);
 		System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
 		System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
 		for (Map m : returnedData.getAnswerRecords()) {
