@@ -548,46 +548,46 @@ public class DNSResponse {
 				type = "NS";	     
 			break; 
 			case 3 :
-				type = "MD";	     
+				type = "3";
 			break; 
 			case 4 :
-				type = "MF";	     
+				type = "4";
 			break; 
 			case 5 :
 				type = "CN";
 			break; 
 			case 6 :
-				type = "SOA";	     
+				type = "6";
 			break; 
 			case 7:
-				type = "MB";	     
+				type = "7";
 			break; 
 			case 8 :
-				type = "MG";	     
+				type = "8";
 			break; 
 			case 9 :
-				type = "MR";	     
+				type = "9";
 			break; 
 			case 10 :
-				type = "NULL";	     
+				type = "10";
 			break; 
 			case 11 :
-				type = "WKS";	     
+				type = "11";
 			break; 
 			case 12 :
-				type = "PTR";	     
+				type = "12";
 			break; 
 			case 13 :
-				type = "HINFO";	     
+				type = "13";
 			break; 
 			case 14 :
-				type = "MINFO";	     
+				type = "14";
 			break; 
 			case 15 :
-				type = "MX";	     
+				type = "15";
 			break; 
 			case 16 :
-				type = "TXT";	     
+				type = "16";
 			break;
             case 28 :
                 type = "AAAA";
