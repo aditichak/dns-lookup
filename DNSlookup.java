@@ -60,8 +60,9 @@ public class DNSlookup {
 
 		DNSResponse drep = recurse (fqdn, rootNameServer);
 		ArrayList<Map> a = drep.getAnswerRecords();
-		Map<String, String> m = a.get(0);
-		System.out.println(orginialFqdn + " " +  m.get("ttl") + " " +  m.get("recordValue"));
+		for (Map m : a) {
+			System.out.println(orginialFqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
+		}
 	}
 
 	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) throws Exception{
@@ -112,7 +113,7 @@ public class DNSlookup {
 				Map<String, String> m = a.get(0);
 				String name = m.get("recordValue");
 				receivedPacket = recurse(name, rootNameServer);
-				ArrayList<Map> ar = receivedPacket.getAuthoritativeRecords();
+				ArrayList<Map> ar = receivedPacket.getAnswerRecords();
 				Map<String, String> mr = ar.get(0);
 				String rname = mr.get("recordValue");
 				InetAddress ippp = InetAddress.getByName(rname);
