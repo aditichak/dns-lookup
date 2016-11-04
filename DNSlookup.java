@@ -84,7 +84,8 @@ public class DNSlookup {
 		DNSResponse returnedData = new DNSResponse(data, data.length);
 
 		if (tracingOn) {
-			printQuery(returnedData, buf[0], buf[1], rootIP, fqdn);
+			String rootname = rootNameServer.getHostAddress();
+			printQuery(returnedData, buf[0], buf[1], rootname, fqdn);
 		}
 
 		return returnedData;
@@ -125,8 +126,6 @@ public class DNSlookup {
 			return recurse(m.get("recordValue"), rootNameServer);
 		}
 		else if (m.get("recordType") == "A") {
-//			String aIp = m.get("recordValue");
-//			InetAddress ipp = InetAddress.getByName(aIp);
 			return receivedPacket;
 		}
 		return null;
