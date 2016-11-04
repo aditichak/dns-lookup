@@ -92,9 +92,22 @@ public class DNSlookup {
 		return returnedData;
 	}
 
+
+	private static void checkForErrors(DNSResponse receivedPacket) {
+		int rcode = receivedPacket.getResponseCode();
+		if (rcode == 3) {
+			System.out.println(orginialFqdn + " -1 " + "0.0.0.0");
+			System.exit(0);
+		}
+		else if (rcode != 0) {
+			System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+			System.exit(0);
+		}
+	}
+
 	private static DNSResponse recurse (String fqdn, InetAddress ip) throws Exception{
 		DNSResponse receivedPacket = sendAndReceive(fqdn, ip);
-
+		checkForErrors(receivedPacket);
 		while (receivedPacket.getAnswerCount() <=0 ) {
 			if (receivedPacket.getAdditionalCount() > 0) {
 				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
@@ -104,8 +117,23 @@ public class DNSlookup {
 					InetAddress oip = InetAddress.getByName(queryIp);
 					receivedPacket = sendAndReceive(fqdn, oip);
 				}
-				else {
-					//TODO IPV6
+			}
+			if (receivedPacket.getAdditionalCount() > 0) {
+				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
+				Map<String, String> m = a.get(0);
+				int i = 0;
+				while (m.get("recordType") != "A" && i < receivedPacket.getAdditionalCount()) {
+					i++;
+					m = a.get(i);
+				}
+				if (i == receivedPacket.getAdditionalCount() - 1) {
+					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+					System.exit(0);
+				}
+				if (m.get("recordType") == "A") {
+					String queryIp = m.get("recordValue");
+					InetAddress oip = InetAddress.getByName(queryIp);
+					receivedPacket = sendAndReceive(fqdn, oip);
 				}
 			}
 			else if (receivedPacket.getNsCount() > 0) {
@@ -120,7 +148,7 @@ public class DNSlookup {
 				receivedPacket = sendAndReceive(fqdn, ippp);
 			}
 		}
-
+		checkForErrors(receivedPacket);
 		ArrayList<Map> a = receivedPacket.getAnswerRecords();
 		Map<String, String> m = a.get(0);
 		if (m.get("recordType") == "CN") {
@@ -177,7 +205,7 @@ public class DNSlookup {
   //   +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
   //   |                    ARCOUNT                    |
   //   +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-		
+
 		//set ID
 		// TODO: randomize this!
 		Random r = new Random();
@@ -214,16 +242,31 @@ public class DNSlookup {
 		System.out.println("Query ID     " + returnedData.bytesToInt(buf1, buf2) + " " + fqdn + " --> " + rootName);
 		System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
 		System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
-		for (Map m : returnedData.getAnswerRecords()) {
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+		for (Map<String,String> m : returnedData.getAnswerRecords()) {
+			String k = m.get("recordValue");
+			if (k == "") {
+				k = "----";
+			}
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
 		}
 		System.out.println("  Nameservers " + "(" + returnedData.getNsCount() + ")");
-		for (Map m : returnedData.getAuthoritativeRecords()) {
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+//		for (Map m : returnedData.getAuthoritativeRecords()) {
+//			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+//		}
+		for (Map<String,String> m : returnedData.getAuthoritativeRecords()) {
+			String k = m.get("recordValue");
+			if (k == "") {
+				k = "----";
+			}
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
 		}
 		System.out.println("  Additional Information " + "(" + returnedData.getAdditionalCount() + ")");
-		for (Map m : returnedData.getAdditionalRecords()) {
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
+		for (Map<String,String> m : returnedData.getAdditionalRecords()) {
+			String k = m.get("recordValue");
+			if (k == "") {
+				k = "----";
+			}
+			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
 		}
 	}
 	private static void setPacketQuery(byte[] buf, String fqdn) throws Exception{

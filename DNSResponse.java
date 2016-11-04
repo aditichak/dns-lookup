@@ -73,6 +73,10 @@ public class DNSResponse {
         return additionalCount;
     }
 
+    public int getResponseCode() {
+        return responseCode;
+    }
+
     boolean checkQueryId(byte a, byte b) {
 
         int first = (int) a;
