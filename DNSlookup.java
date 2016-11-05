@@ -3,16 +3,8 @@ import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.util.Random;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.InitialDirContext;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.*;
@@ -49,36 +41,44 @@ public class DNSlookup {
 			usage();
 			return;
 		}
-
-		rootNameServer = InetAddress.getByName(args[0]);
-		rootIP = args[0];
-		fqdn = args[1];
-		orginialFqdn = args[1];
+		try {
+			rootNameServer = InetAddress.getByName(args[0]);
+			rootIP = args[0];
+			fqdn = args[1];
+			orginialFqdn = args[1];
+		} catch (UnknownHostException e) {
+			usage();
+			return;
+		}
 
 		if (argCount == 3 && args[2].equals("-t"))
-				tracingOn = true;
-
-		// Start adding code here to initiate the lookup
-
-		DNSResponse drep = recurse (fqdn, rootNameServer);
-		ArrayList<Map> a = drep.getAnswerRecords();
-		for (Map m : a) {
-			System.out.println(orginialFqdn + " " + m.get("ttl") + " " + m.get("recordValue"));
+			tracingOn = true;
+		try {
+			response = recurse (fqdn, rootNameServer);
+			ArrayList<Map> answers = response.getAnswerRecords();
+			for (Map answer : answers) {
+				System.out.println(orginialFqdn + " " + answer.get("ttl") + " " + answer.get("recordValue"));
+			}
+		} catch (Exception ex) {
+				System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+				System.exit(0);
 		}
 	}
 
-	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) throws Exception{
+	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) {
 		if (queryNum > 30) {
 			System.out.println(orginialFqdn + " -3 " + "0.0.0.0");
 			System.exit(0);
 		}
 		queryNum++;
-		byte[] buf = setPacketData(fqdn);
+		byte[] buf; 
 		byte[] data = new byte[1024];
 		DNSResponse returnedData = null;
-
 		for (int i = 0; i < 2; i++) {
 			try {
+				buf = setPacketData(fqdn);
+				
+				
 				// Creat a socket and send the packet
 				DatagramSocket socket = new DatagramSocket();
 				DatagramPacket packet = new DatagramPacket(buf, buf.length, rootNameServer, 53);
@@ -95,6 +95,22 @@ public class DNSlookup {
 				}
 
 				socket.close();
+				if (tracingOn) {
+					String rootname = rootNameServer.getHostAddress();
+					printQuery(returnedData, buf[0], buf[1], rootname, fqdn);
+				}
+				break;
+			// there is an error with the DNSResponse, check the rcode and print the appropriate message
+			} catch (DNSResponseException exception) {	 
+				if(exception.getMessage().equals("3")){
+					System.out.println(orginialFqdn + " -1 " + "0.0.0.0");
+				} else {
+					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+				}
+				System.exit(0);
+
+			// if we don't recieve a response resend the packet once, the second time you don't recive a
+				// print an error message and exit
 			} catch (SocketTimeoutException e) {
 				if (i == 1) {
 					System.out.println(orginialFqdn + " -2 " + "0.0.0.0");
@@ -103,19 +119,13 @@ public class DNSlookup {
 				else {
 					continue;
 				}
+			} catch (Exception ex) {
+				System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+				System.exit(0);
 			}
 		}
-		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
-//		for (int i = 0; i < recievedPacket.getLength(); i++) {
-//			//System.out.print(" 0x" + String.format("%x", data[i]) + " " );
-//		}
-
-
-		if (tracingOn) {
-			String rootname = rootNameServer.getHostAddress();
-			printQuery(returnedData, buf[0], buf[1], rootname, fqdn);
-		}
+		
 		checkForErrors(returnedData);
 		return returnedData;
 	}
@@ -133,76 +143,74 @@ public class DNSlookup {
 		}
 	}
 
-	private static DNSResponse recurse (String fqdn, InetAddress ip) throws Exception{
+	private static DNSResponse recurse (String fqdn, InetAddress ip) throws Exception {
 		DNSResponse receivedPacket = sendAndReceive(fqdn, ip);
-		checkForErrors(receivedPacket);
 		while (receivedPacket.getAnswerCount() <=0 ) {
 			if (receivedPacket.getAdditionalCount() > 0 && receivedPacket.getNsCount() > 0) {
-				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
-				ArrayList<Map> additional = receivedPacket.getAdditionalRecords();
+				ArrayList<Map> authoritativeRecords = receivedPacket.getAuthoritativeRecords();
+				ArrayList<Map> additionalRecords = receivedPacket.getAdditionalRecords();
 				boolean stop = false;
-				for (Map<String, String> m : a) {
-					if (m.get("recordType") != "NS") {
+				for (Map<String, String> authRecord : authoritativeRecords) {
+					if (authRecord.get("recordType") != "NS") {
 						continue;
 					}
-					String nameserver = m.get("recordValue");
-					for (Map<String, String> mAdditional : additional) {
-						String additionalName = mAdditional.get("recordName");
-						nameserver = nameserver.trim();
-						additionalName = additionalName.trim();
-						if (nameserver.equals(additionalName) && mAdditional.get("recordType") == "A") {
-							String queryIp = mAdditional.get("recordValue");
-							InetAddress oip = InetAddress.getByName(queryIp);
-							receivedPacket = sendAndReceive(fqdn, oip);
+					String nameserver = authRecord.get("recordValue").trim();
+					for (Map<String, String> additionalRecord : additionalRecords) {
+						String additionalName = additionalRecord.get("recordName").trim();
+						if (nameserver.equals(additionalName) && additionalRecord.get("recordType") == "A") {
+							InetAddress queryIp = InetAddress.getByName(additionalRecord.get("recordValue").trim());
+							receivedPacket = sendAndReceive(fqdn, queryIp);
 							stop = true;
 							break;
 						}
 					}
 					if (stop) {
+						// found a nameserver to query so stop iterating
 						break;
 					}
 				}
 			}
 			else if (receivedPacket.getNsCount() > 0) {
-				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
-				Map<String, String> m = a.get(0);
+				// if there are authoratative nameservers but no additional information,
+				// look up the name server
+				ArrayList<Map> authoritativeRecords = receivedPacket.getAuthoritativeRecords();
+				Map<String, String> authoritativeRecord = authoritativeRecords.get(0);
 				int i = 0;
-				while (m.get("recordType") != "NS" && i < receivedPacket.getNsCount()) {
-					m = a.get(i);
+				// get an authoratitive record of type NS
+				while (authoritativeRecord.get("recordType") != "NS" && i < receivedPacket.getNsCount()) {
+					authoritativeRecord = authoritativeRecords.get(i);
 					i++;
 				}
-
+				// if there are no nameservers with type NS, return an error
 				if (i == receivedPacket.getNsCount() ) {
 					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
 					System.exit(0);
 				}
-				String name = m.get("recordValue");
-				receivedPacket = recurse(name, rootNameServer);
-				ArrayList<Map> ar = receivedPacket.getAnswerRecords();
-				Map<String, String> mr = ar.get(0);
-				String rname = mr.get("recordValue");
-				InetAddress ippp = InetAddress.getByName(rname);
-				receivedPacket = sendAndReceive(fqdn, ippp);
+				String name = authoritativeRecord.get("recordValue");
+				// look up the ip of the nameserver
+				DNSResponse nameserverPacket = recurse(name, rootNameServer);
+				ArrayList<Map> answerRecords = nameserverPacket.getAnswerRecords();
+				Map<String, String> nameServerAnswer = answerRecords.get(0);
+				InetAddress queryIp = InetAddress.getByName(nameServerAnswer.get("recordValue"));
+				// look up the original fqdn with the authoritative name servers IP
+				receivedPacket = sendAndReceive(fqdn, queryIp);
 			}
 		}
-		checkForErrors(receivedPacket);
-		ArrayList<Map> a = receivedPacket.getAnswerRecords();
-		Map<String, String> m = a.get(0);
-		if (m.get("recordType") == "CN") {
-			if (Integer.parseInt(m.get("ttl")) < minttl) {
-				minttl = Integer.parseInt(m.get("ttl"));
+		ArrayList<Map> answerRecords = receivedPacket.getAnswerRecords();
+		Map<String, String> answerRecord = answerRecords.get(0);
+		if (answerRecord.get("recordType") == "CN") {
+			if (Integer.parseInt(answerRecord.get("ttl")) < minttl) {
+				minttl = Integer.parseInt(answerRecord.get("ttl"));
 			}
-			return recurse(m.get("recordValue"), rootNameServer);
+			return recurse(answerRecord.get("recordValue"), rootNameServer);
 		}
-		else if (m.get("recordType") == "A") {
-			if (Integer.parseInt(m.get("ttl")) > minttl) {
-				m.put("ttl", Integer.toString(minttl));
+		else if (answerRecord.get("recordType") == "A") {
+			if (Integer.parseInt(answerRecord.get("ttl")) > minttl) {
+				answerRecord.put("ttl", Integer.toString(minttl));
 			}
 			return receivedPacket;
 		}
 		return null;
-
-
 	}
 
 	private static void usage() {
@@ -216,15 +224,8 @@ public class DNSlookup {
 
 	private static byte[] setPacketData(String fqdn) throws Exception{
 		byte[] buf = new byte[18 + fqdn.length()];
-
 		setPacketHeader(buf);
 		setPacketQuery(buf, fqdn);
-
-		//System.out.println("Sending: " + buf.length + " bytes");
-		for (int i =0; i< buf.length; i++) {
-			//System.out.print("0x" + String.format("%x", buf[i]) + " " );
-		}
-
 		return buf;
 	}
 
@@ -250,10 +251,8 @@ public class DNSlookup {
   //   +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 
 		//set ID
-		// TODO: randomize this!
 		Random r = new Random();
 		int random = r.nextInt(65536);
-
 		buf[0] = (byte) ((random >> 8) & 0xff);
 		buf[1] = (byte) (random & 0xff);
 
@@ -280,38 +279,34 @@ public class DNSlookup {
 		buf[11] = (byte) 0;
 	}
 
+	private static void printRecords(ArrayList<Map> records) {
+		for (Map<String,String> record : records) {
+			String recordValue = record.get("recordValue");
+			if (recordValue == "") {
+				recordValue = "----";
+			}
+			System.out.format("       %-30s %-10s %-4s %s\n", record.get("recordName"), record.get("ttl"), record.get("recordType"), recordValue);
+		}
+		
+	}
+	
+
 	private static void printQuery(DNSResponse returnedData, byte buf1, byte buf2, String rootName, String fqdn) {
 		System.out.print("\n\n");
 		System.out.println("Query ID     " + returnedData.bytesToInt(buf1, buf2) + " " + fqdn + " --> " + rootName);
 		System.out.println("Response ID: " + returnedData.getQueryId() + " " + "Authoritative " + returnedData.getAuthoritative());
+		
 		System.out.println("  Answers " + "(" + returnedData.getAnswerCount() + ")");
-		for (Map<String,String> m : returnedData.getAnswerRecords()) {
-			String k = m.get("recordValue");
-			if (k == "") {
-				k = "----";
-			}
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
-		}
+		printRecords(returnedData.getAnswerRecords());
+		
 		System.out.println("  Nameservers " + "(" + returnedData.getNsCount() + ")");
-//		for (Map m : returnedData.getAuthoritativeRecords()) {
-//			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), m.get("recordValue"));
-//		}
-		for (Map<String,String> m : returnedData.getAuthoritativeRecords()) {
-			String k = m.get("recordValue");
-			if (k == "") {
-				k = "----";
-			}
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
-		}
+		printRecords(returnedData.getAuthoritativeRecords());
+		
 		System.out.println("  Additional Information " + "(" + returnedData.getAdditionalCount() + ")");
-		for (Map<String,String> m : returnedData.getAdditionalRecords()) {
-			String k = m.get("recordValue");
-			if (k == "") {
-				k = "----";
-			}
-			System.out.format("       %-30s %-10s %-4s %s\n", m.get("recordName"), m.get("ttl"), m.get("recordType"), k);
-		}
+		printRecords(returnedData.getAdditionalRecords());
 	}
+
+
 	private static void setPacketQuery(byte[] buf, String fqdn) throws Exception{
 				  //                                   1  1  1  1  1  1
     //   0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
@@ -325,19 +320,14 @@ public class DNSlookup {
     // |                     QCLASS                    |
     // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 
-		// write the query fqdn to the packet
-		String[] domainParts = fqdn.split("\\.");
-		//System.out.println(fqdn + " has " + domainParts.length + " parts");
-
+		
 		// the query section starts at byte 12 of the packet data.
 		int counter = 12;
+		// set the QNAME
+		String[] domainParts = fqdn.split("\\.");
 		for (int i = 0; i<domainParts.length; i++) {
-			//System.out.println("Writing: " + domainParts[i]);
 			byte[] domainBytes = domainParts[i].getBytes("UTF-8");
-			//System.out.println(domainBytes.length);
-
 			buf[counter] = (byte) domainBytes.length;
-
 			counter++;
 
 			for (byte b : domainBytes) {

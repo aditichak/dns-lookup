@@ -28,7 +28,7 @@ public class DNSResponse {
     private int questionCount = 0;
     private boolean isResponse = false;
     private boolean truncation = false;
-    private int responseCode = 0;
+    private int responseCode = -1;
     private ArrayList<Map> answerRecords = new ArrayList<Map>();
     private ArrayList<Map> additionalRecords = new ArrayList<Map>();
     private ArrayList<Map> authoritativeRecords = new ArrayList<Map>();
@@ -88,14 +88,18 @@ public class DNSResponse {
     // The constructor: you may want to add additional parameters, but the two shown are 
     // probably the minimum that you need.
 
-	public DNSResponse (byte[] data, int len) throws Exception {
-
-	    this.extractResponseHeader(data);
-        int offset = this.skipQuerySection(12, data);
-        offset = this.extractRecords(offset, data, answerCount, answerRecords);
-        offset = this.extractRecords(offset, data, nsCount, authoritativeRecords);
-        offset = extractRecords(offset, data, additionalCount, additionalRecords);
+	public DNSResponse (byte[] data, int len) throws DNSResponseException {
+        try {
+    	    this.extractResponseHeader(data);
+            int offset = this.skipQuerySection(12, data);
+            offset = this.extractRecords(offset, data, answerCount, answerRecords);
+            offset = this.extractRecords(offset, data, nsCount, authoritativeRecords);
+            offset = extractRecords(offset, data, additionalCount, additionalRecords);
+        } catch (Exception ex) {
+            throw new DNSResponseException(Integer.toString(this.responseCode));
+        }
     }
+
 
 
     // You will also want methods to extract the response records and record
@@ -130,7 +134,6 @@ public class DNSResponse {
 
         int tc  = (data[2] >> 1) & 1;
         truncation = intToBool(tc);
-        // TODO: what if response is truncated
         responseCode = data[3] & 15;
       
         this.questionCount = bytesToInt(data[4], data[5]);
@@ -161,7 +164,7 @@ public class DNSResponse {
     }
 
 
-private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map> records) {
+private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map> records) throws Exception{
         
     //      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
     // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
@@ -244,16 +247,16 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
 
             String ip = "";
             // extract IP 
-            if (classType == 1 && (answerType == 1 || answerType == 28 )) {
-                if (answerType == 28) {
-                    ip = this.extractIPV6(offset, rdataLength, data);
-                }
-                else {
+            if (classType == 1 && answerType == 1 ) {
                     ip = this.extractIP(offset, rdataLength, data);
-                }
-                offset = offset + rdataLength;
+                    offset = offset + rdataLength;
+            }
+            if (classType == 1 && answerType == 28) {
+                     ip = this.extractIPV6(offset, rdataLength, data);
+                     offset = offset + rdataLength;
             }
 
+            // if the type is NS or CN extract a domain name
             if ((classType == 1 && answerType == 5) || classType == 1 && answerType == 2) {
                 offset++;
                 fqdnPointer = offset;
@@ -290,17 +293,10 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
             record.put("ttl", Long.toString(ttl).trim());
             record.put("recordType", type.trim());
             record.put("recordValue", ip.trim());
-//            for (String key : record.keySet()) {
-//                System.out.println("Key = " + key + " - " + record.get(key));
-//            }
             records.add(record);
         }
         return offset;
     }
-
-
-
-
 
 
     private String intToType(int answerType) {
@@ -421,7 +417,6 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
         }
         return ip.substring(0, ip.length() - 1);
     }
-
 
     public static int bytesToInt(byte higherOrderByte, byte lowerOrderByte) {
     	return (((int) higherOrderByte << 8) & 0xFFFF) | ( (int) lowerOrderByte & 0xFF);
