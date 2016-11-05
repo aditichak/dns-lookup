@@ -35,11 +35,6 @@ public class DNSResponse {
 
     // Note you will almost certainly need some additional instance variables.
 
-    // When in trace mode you probably want to dump out all the relevant information in a response
-
-	// void dumpResponse() {
-
-	// }
 
     public ArrayList<Map> getAdditionalRecords() {
         return additionalRecords;
@@ -216,7 +211,7 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
                 }
                 for (int y = 0; y < length; y++) {
                     fqdnPointer++;
-                    domainName = domainName + Character.toString((char) data[fqdnPointer]);
+                    domainName = domainName + Character.toString((char) data[fqdnPointer]).trim();
                     if (!hasBeenCompressed) {
                         offset++;
                     }
@@ -224,8 +219,7 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
                 domainName += ".";
                 fqdnPointer++;
             }
-            domainName = domainName.substring(0, domainName.length() - 1);
-
+            domainName = domainName.substring(0, domainName.length() - 1).trim();
             //extract type
 
             int answerType = bytesToInt(data[offset], data[offset + 1]);
@@ -282,20 +276,20 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
                     }
                     for (int y = 0; y < length; y++) {
                         fqdnPointer++;
-                        ip = ip + Character.toString((char) data[fqdnPointer]);
+                        ip = ip + Character.toString((char) data[fqdnPointer]).trim();
                     }
                     ip += ".";
                     fqdnPointer++;
                 }
                 offset = offset + rdataLength - 1;
-                ip = ip.substring(0, ip.length() - 1);
+                ip = ip.substring(0, ip.length() - 1).trim();
             }
 
             Map<String, String> record = new HashMap<String, String>();
-            record.put("recordName", domainName);
-            record.put("ttl", Long.toString(ttl));
-            record.put("recordType", type);
-            record.put("recordValue", ip);
+            record.put("recordName", domainName.trim());
+            record.put("ttl", Long.toString(ttl).trim());
+            record.put("recordType", type.trim());
+            record.put("recordValue", ip.trim());
 //            for (String key : record.keySet()) {
 //                System.out.println("Key = " + key + " - " + record.get(key));
 //            }
@@ -394,25 +388,7 @@ private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map
 
 
     private int getFqdnPointer(int offset, byte[] data) {
-        return ((((int) data[offset]) & 63) << 6) | ((int) data[offset + 1] & 0xFF);
-     //   return ((((int) data[offset]) & 63) << 8) | ((int) data[offset + 1] & 0xFF);
-    }
-
-    private String extractFqdn(int fqdnPointer, byte[] data) {
-    	   String fqdn = "";
-    	   int length = 0;
-            while (data[fqdnPointer] != 0) {
-                length = (int) data[fqdnPointer];
-                for (int k = 0; k < length; k++) {
-
-                    fqdnPointer++;
-                    fqdn = fqdn + Character.toString((char) data[fqdnPointer]);
-                }
-                fqdn += ".";
-                fqdnPointer++;
-
-            }
-            return fqdn.substring(0, fqdn.length() - 1);
+       return ((((((int) data[offset]) & 0xFFFFFFFF) << 26)) >> 18) | ((int) data[offset + 1] & 0xFF);
     }
 
     private String extractIP(int offset, int length, byte[] data){
