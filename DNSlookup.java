@@ -89,7 +89,6 @@ public class DNSlookup {
 				DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
 				socket.receive(recievedPacket);
 				returnedData = new DNSResponse(data, data.length);
-
 				while (!returnedData.checkQueryId(buf[0], buf[1])) {
 					socket.receive(recievedPacket);
 					returnedData = new DNSResponse(data, data.length);
@@ -117,6 +116,7 @@ public class DNSlookup {
 			String rootname = rootNameServer.getHostAddress();
 			printQuery(returnedData, buf[0], buf[1], rootname, fqdn);
 		}
+		checkForErrors(returnedData);
 		return returnedData;
 	}
 
@@ -162,27 +162,20 @@ public class DNSlookup {
 						break;
 					}
 				}
-
-//				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
-//				Map<String, String> m = a.get(0);
-//				int i = 0;
-//				while (m.get("recordType") != "A" && i < receivedPacket.getAdditionalCount()) {
-//					i++;
-//					m = a.get(i);
-//				}
-//				if (i == receivedPacket.getAdditionalCount() - 1) {
-//					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
-//					System.exit(0);
-//				}
-//				if (m.get("recordType") == "A") {
-//					String queryIp = m.get("recordValue");
-//					InetAddress oip = InetAddress.getByName(queryIp);
-//					receivedPacket = sendAndReceive(fqdn, oip);
-//				}
 			}
 			else if (receivedPacket.getNsCount() > 0) {
 				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
 				Map<String, String> m = a.get(0);
+				int i = 0;
+				while (m.get("recordType") != "NS" && i < receivedPacket.getNsCount()) {
+					m = a.get(i);
+					i++;
+				}
+
+				if (i == receivedPacket.getNsCount() ) {
+					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+					System.exit(0);
+				}
 				String name = m.get("recordValue");
 				receivedPacket = recurse(name, rootNameServer);
 				ArrayList<Map> ar = receivedPacket.getAnswerRecords();
@@ -355,7 +348,7 @@ public class DNSlookup {
 
 		buf[counter] = (byte) 0;
 
-		
+
 		// set Query Type to A
 		counter++;
 		buf[counter] = (byte) 0;
