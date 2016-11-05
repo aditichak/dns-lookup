@@ -122,32 +122,48 @@ public class DNSlookup {
 		DNSResponse receivedPacket = sendAndReceive(fqdn, ip);
 		checkForErrors(receivedPacket);
 		while (receivedPacket.getAnswerCount() <=0 ) {
-			if (receivedPacket.getAdditionalCount() > 0) {
-				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
-				Map<String, String> m = a.get(0);
-				if (m.get("recordType") == "A") {
-					String queryIp = m.get("recordValue");
-					InetAddress oip = InetAddress.getByName(queryIp);
-					receivedPacket = sendAndReceive(fqdn, oip);
+			if (receivedPacket.getAdditionalCount() > 0 && receivedPacket.getNsCount() > 0) {
+				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();
+				ArrayList<Map> additional = receivedPacket.getAdditionalRecords();
+				boolean stop = false;
+				for (Map<String, String> m : a) {
+					if (m.get("recordType") != "NS") {
+						continue;
+					}
+					String nameserver = m.get("recordValue");
+					for (Map<String, String> mAdditional : additional) {
+						String additionalName = mAdditional.get("recordName");
+						nameserver = nameserver.trim();
+						additionalName = additionalName.trim();
+						if (nameserver.equals(additionalName) && mAdditional.get("recordType") == "A") {
+							String queryIp = mAdditional.get("recordValue");
+							InetAddress oip = InetAddress.getByName(queryIp);
+							receivedPacket = sendAndReceive(fqdn, oip);
+							stop = true;
+							break;
+						}
+					}
+					if (stop) {
+						break;
+					}
 				}
-			}
-			if (receivedPacket.getAdditionalCount() > 0) {
-				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
-				Map<String, String> m = a.get(0);
-				int i = 0;
-				while (m.get("recordType") != "A" && i < receivedPacket.getAdditionalCount()) {
-					i++;
-					m = a.get(i);
-				}
-				if (i == receivedPacket.getAdditionalCount() - 1) {
-					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
-					System.exit(0);
-				}
-				if (m.get("recordType") == "A") {
-					String queryIp = m.get("recordValue");
-					InetAddress oip = InetAddress.getByName(queryIp);
-					receivedPacket = sendAndReceive(fqdn, oip);
-				}
+
+//				ArrayList<Map> a = receivedPacket.getAdditionalRecords();
+//				Map<String, String> m = a.get(0);
+//				int i = 0;
+//				while (m.get("recordType") != "A" && i < receivedPacket.getAdditionalCount()) {
+//					i++;
+//					m = a.get(i);
+//				}
+//				if (i == receivedPacket.getAdditionalCount() - 1) {
+//					System.out.println(orginialFqdn + " -4 " + "0.0.0.0");
+//					System.exit(0);
+//				}
+//				if (m.get("recordType") == "A") {
+//					String queryIp = m.get("recordValue");
+//					InetAddress oip = InetAddress.getByName(queryIp);
+//					receivedPacket = sendAndReceive(fqdn, oip);
+//				}
 			}
 			else if (receivedPacket.getNsCount() > 0) {
 				ArrayList<Map> a = receivedPacket.getAuthoritativeRecords();

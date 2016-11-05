@@ -130,11 +130,6 @@ public class DNSResponse {
         // determine whether this is a response or query packet
         int qr = ((int) data[2] >> 7) & 1;
 		isResponse = intToBool(qr);
-		if(!isResponse) {
-			// TODO: error handling
-			System.out.println("ERROR");
-		}
-
         int aa = ((int) data[2] >> 2) & 1;
         authoritative = intToBool(aa);
 
