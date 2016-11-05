@@ -77,7 +77,7 @@ public class DNSResponse {
         return responseCode;
     }
 
-    boolean checkQueryId(byte a, byte b) {
+    public boolean checkQueryId(byte a, byte b) {
 
         int first = (int) a;
         int sec = (int) b;

@@ -75,28 +75,43 @@ public class DNSlookup {
 		queryNum++;
 		byte[] buf = setPacketData(fqdn);
 		byte[] data = new byte[1024];
-		try {
-			// Creat a socket and send the packet
-			DatagramSocket socket = new DatagramSocket();
-			DatagramPacket packet = new DatagramPacket(buf, buf.length, rootNameServer, 53);
-			socket.setSoTimeout(5000);
-			socket.send(packet);
+		DNSResponse returnedData = null;
 
-			// wait for response
-			DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
-			socket.receive(recievedPacket);
-			socket.close();
-		}
-		catch (SocketTimeoutException e) {
-			System.out.println(orginialFqdn + " -2 " + "0.0.0.0");
-			System.exit(0);
+		for (int i = 0; i < 2; i++) {
+			try {
+				// Creat a socket and send the packet
+				DatagramSocket socket = new DatagramSocket();
+				DatagramPacket packet = new DatagramPacket(buf, buf.length, rootNameServer, 53);
+				socket.setSoTimeout(5000);
+				socket.send(packet);
+
+				// wait for response
+				DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
+				socket.receive(recievedPacket);
+				returnedData = new DNSResponse(data, data.length);
+
+				while (!returnedData.checkQueryId(buf[0], buf[1])) {
+					socket.receive(recievedPacket);
+					returnedData = new DNSResponse(data, data.length);
+				}
+
+				socket.close();
+			} catch (SocketTimeoutException e) {
+				if (i == 1) {
+					System.out.println(orginialFqdn + " -2 " + "0.0.0.0");
+					System.exit(0);
+				}
+				else {
+					continue;
+				}
+			}
 		}
 		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
 //		for (int i = 0; i < recievedPacket.getLength(); i++) {
 //			//System.out.print(" 0x" + String.format("%x", data[i]) + " " );
 //		}
-		DNSResponse returnedData = new DNSResponse(data, data.length);
+
 
 		if (tracingOn) {
 			String rootname = rootNameServer.getHostAddress();
