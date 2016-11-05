@@ -37,9 +37,9 @@ public class DNSResponse {
 
     // When in trace mode you probably want to dump out all the relevant information in a response
 
-	void dumpResponse() {
+	// void dumpResponse() {
 
-	}
+	// }
 
     public ArrayList<Map> getAdditionalRecords() {
         return additionalRecords;
@@ -97,9 +97,9 @@ public class DNSResponse {
 
 	    this.extractResponseHeader(data);
         int offset = this.skipQuerySection(12, data);
-        offset = this.extractAnswerSection(offset, data);
-        offset = this.extractAuthoritativeSection(offset, data);
-        offset = this.extractAdditionalSection(offset, data);
+        offset = this.extractRecords(offset, data, answerCount, answerRecords);
+        offset = this.extractRecords(offset, data, nsCount, authoritativeRecords);
+        offset = extractRecords(offset, data, additionalCount, additionalRecords);
     }
 
 
@@ -166,9 +166,9 @@ public class DNSResponse {
     }
 
 
-    private int extractAnswerSection(int offset, byte[] data) {
-    	
-    // 	    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+private int extractRecords(int offset, byte[] data, int loopCount, ArrayList<Map> records) {
+        
+    //      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
     // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
     // |                                               |
     // /                                               /
@@ -187,7 +187,7 @@ public class DNSResponse {
     // /                     RDATA                     /
     // /                                               /
     // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        for (int i = 0; i < answerCount; i++) {
+        for (int i = 0; i < loopCount; i++) {
 
             offset++;
             String domainName = "";
@@ -228,8 +228,8 @@ public class DNSResponse {
 
             //extract type
 
-           	int answerType = bytesToInt(data[offset], data[offset + 1]);
-    		offset++;
+            int answerType = bytesToInt(data[offset], data[offset + 1]);
+            offset++;
             String type = this.intToType(answerType);
            
             // extract class
@@ -243,8 +243,8 @@ public class DNSResponse {
             long ttl = bytesToLong(data[offset], data[offset+1], data[offset+2], data[offset+3]);
             offset = offset + 3;
             offset++;
-    	        
-    		
+                
+            
            int rdataLength = bytesToInt(data[offset], data[offset+1]);
            offset++;
 
@@ -260,7 +260,7 @@ public class DNSResponse {
                 offset = offset + rdataLength;
             }
 
-            if (classType == 1 && answerType == 5) {
+            if ((classType == 1 && answerType == 5) || classType == 1 && answerType == 2) {
                 offset++;
                 fqdnPointer = offset;
                 hasBeenCompressed = false;
@@ -299,237 +299,13 @@ public class DNSResponse {
 //            for (String key : record.keySet()) {
 //                System.out.println("Key = " + key + " - " + record.get(key));
 //            }
-            answerRecords.add(record);
-        }
-    	return offset;
-    }
-
-
-    private int extractAuthoritativeSection(int offset, byte[] data) {
-
-        // 	    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        // |                                               |
-        // /                                               /
-        // /                      NAME                     /
-        // |                                               |
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        // |                      TYPE                     |
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        // |                     CLASS                     |
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        // |                      TTL                      |
-        // |                                               |
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-        // |                   RDLENGTH                    |
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
-        // /                     RDATA                     /
-        // /                                               /
-        // +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
-
-        for (int i = 0; i < nsCount; i++) {
-            offset++;
-            String name = "";
-            int fqdnPointer = offset;
-            boolean hasBeenCompressed = false;
-            while (data[fqdnPointer] != 0){
-                int isCompressed = ((int) data[fqdnPointer] >> 6) & 3;
-                int length = 0;
-
-                if (isCompressed == 0) {
-                    length = (int) data[fqdnPointer];
-
-                    if (!hasBeenCompressed) {
-                        offset++;
-                    }
-                }
-
-                else if (isCompressed == 3) {
-                    fqdnPointer = this.getFqdnPointer(fqdnPointer, data);
-                    length = (int) data[fqdnPointer];
-                    if (!hasBeenCompressed) {
-                        hasBeenCompressed = true;
-                        offset+=2;
-                    }
-                }
-                for (int y = 0; y < length; y++) {
-                    fqdnPointer++;
-                    name = name + Character.toString((char) data[fqdnPointer]);
-                    if (!hasBeenCompressed) {
-                        offset++;
-                    }
-                }
-                name += ".";
-                fqdnPointer++;
-            }
-            name = name.substring(0, name.length() - 1);
-
-            //extract type
-
-            int answerType = bytesToInt(data[offset], data[offset + 1]);
-            offset++;
-            String type = this.intToType(answerType);
-
-            // extract class
-            offset++;
-            int classType = bytesToInt(data[offset], data[offset + 1]);
-            offset++;
-            String ansClass = intToClass(classType);
-
-            // extract ttl
-            offset++;
-            long ttl = bytesToLong(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]);
-            offset = offset + 3;
-            offset++;
-
-
-            int rdataLength = bytesToInt(data[offset], data[offset + 1]);
-            offset +=2;
-
-            String domainName = "";
-//            System.out.println(" 0x" + String.format("%x", data[offset]) + " " );
-//            System.out.println(String.format("%d", offset) + " " );
-          if (classType == 1 && answerType == 2) {
-                fqdnPointer = offset;
-                hasBeenCompressed = false;
-                while (data[fqdnPointer] != 0){
-                    int isCompressed = ((int) data[fqdnPointer] >> 6) & 3;
-                    int length = 0;
-
-                    if (isCompressed == 0) {
-                        length = (int) data[fqdnPointer];
-
-                        if (!hasBeenCompressed) {
-
-                        }
-                    }
-
-                    else if (isCompressed == 3) {
-                        fqdnPointer = this.getFqdnPointer(fqdnPointer, data);
-                        length = (int) data[fqdnPointer];
-                        if (!hasBeenCompressed) {
-                            hasBeenCompressed = true;
-
-                        }
-                    }
-                    for (int y = 0; y < length; y++) {
-                        fqdnPointer++;
-                        domainName = domainName + Character.toString((char) data[fqdnPointer]);
-                        if (!hasBeenCompressed) {
-
-                        }
-                    }
-                    domainName += ".";
-                    fqdnPointer++;
-                }
-              offset = offset + rdataLength - 1;
-              domainName = domainName.substring(0, domainName.length() - 1);
-//              System.out.println(domainName);
-//              System.out.println(" 0x" + String.format("%x", data[offset]) + " " );
-//              System.out.println(String.format("%d", offset) + " " );
-
-            }
-            Map<String, String> record = new HashMap<String, String>();
-            record.put("recordName", name);
-            record.put("ttl", Long.toString(ttl));
-            record.put("recordType", type);
-            record.put("recordValue", domainName);
-//            for (String key : record.keySet()) {
-//                System.out.println("Key = " + key + " - " + record.get(key));
-//            }
-            authoritativeRecords.add(record);
+            records.add(record);
         }
         return offset;
     }
 
 
-    private int extractAdditionalSection(int offset, byte[] data) {
 
-        for (int i = 0; i < additionalCount; i++) {
-            offset++;
-            String domainName = "";
-            int fqdnPointer = offset;
-            boolean hasBeenCompressed = false;
-
-            while (data[fqdnPointer] != 0){
-                int isCompressed = ((int) data[fqdnPointer] >> 6) & 3;
-                int length = 0;
-
-                if (isCompressed == 0) {
-                    length = (int) data[fqdnPointer];
-
-                    if (!hasBeenCompressed) {
-                        offset++;
-                    }
-                }
-
-                else if (isCompressed == 3) {
-                    fqdnPointer = this.getFqdnPointer(fqdnPointer, data);
-                    length = (int) data[fqdnPointer];
-                    if (!hasBeenCompressed) {
-                        hasBeenCompressed = true;
-                        offset+=2;
-                    }
-                }
-                for (int y = 0; y < length; y++) {
-                    fqdnPointer++;
-                    domainName = domainName + Character.toString((char) data[fqdnPointer]);
-                    if (!hasBeenCompressed) {
-                        offset++;
-                    }
-                }
-                domainName += ".";
-                fqdnPointer++;
-            }
-            domainName = domainName.substring(0, domainName.length() - 1);
-
-            //extract type
-
-            int answerType = bytesToInt(data[offset], data[offset + 1]);
-            offset++;
-            String type = this.intToType(answerType);
-
-            // extract class
-            offset++;
-            int classType = bytesToInt(data[offset], data[offset + 1]);
-            offset++;
-            String ansClass = intToClass(classType);
-
-            // extract ttl
-            offset++;
-            long ttl = bytesToLong(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]);
-            offset = offset + 3;
-            offset++;
-
-            int rdataLength = bytesToInt(data[offset], data[offset + 1]);
-            offset ++;
-
-            String ip = "";
-            //extract IP
-            if (classType == 1 && (answerType == 1 || answerType == 28)) {
-                if (answerType == 28) {
-                    ip = this.extractIPV6(offset, rdataLength, data);
-                }
-                else {
-                    ip = this.extractIP(offset, rdataLength, data);
-                }
-                offset = offset + rdataLength;
-            }
-
-
-            Map<String, String> record = new HashMap<String, String>();
-            record.put("recordName", domainName);
-            record.put("ttl", Long.toString(ttl));
-            record.put("recordType", type);
-            record.put("recordValue", ip);
-//            for (String key : record.keySet()) {
-//                System.out.println("Key = " + key + " - " + record.get(key));
-//            }
-            additionalRecords.add(record);
-
-        }
-        return offset;
-    }
 
 
 
@@ -646,6 +422,7 @@ public class DNSResponse {
             int ipDigit = (int) data[offset] & 0xff;
             String ipBit = Integer.toString(ipDigit);
             ip = ip + ipBit + ".";
+            
         }
         return ip.substring(0, ip.length() - 1);
     }
@@ -664,6 +441,7 @@ public class DNSResponse {
             ip = ip + temp;
             ip = ip + ":";
             j+=2;
+            
         }
         return ip.substring(0, ip.length() - 1);
     }
