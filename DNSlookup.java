@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.*;
 
 
@@ -34,7 +35,8 @@ public class DNSlookup {
 	static InetAddress rootNameServer;
 	static String rootIP;
 	static String orginialFqdn;
-
+	static int minttl = Integer.MAX_VALUE;
+	static int queryNum = 0;
 	/**
 	 * @param args
 	 */
@@ -66,17 +68,29 @@ public class DNSlookup {
 	}
 
 	private static DNSResponse sendAndReceive(String fqdn, InetAddress rootNameServer) throws Exception{
+		if (queryNum > 30) {
+			System.out.println(orginialFqdn + " -3 " + "0.0.0.0");
+			System.exit(0);
+		}
+		queryNum++;
 		byte[] buf = setPacketData(fqdn);
-		// Creat a socket and send the packet
-		DatagramSocket socket = new DatagramSocket();
-		DatagramPacket packet = new DatagramPacket(buf, buf.length,rootNameServer, 53);
-		socket.send(packet);
-
-		// wait for response
 		byte[] data = new byte[1024];
-		DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
-		socket.receive(recievedPacket);
-		socket.close();
+		try {
+			// Creat a socket and send the packet
+			DatagramSocket socket = new DatagramSocket();
+			DatagramPacket packet = new DatagramPacket(buf, buf.length, rootNameServer, 53);
+			socket.setSoTimeout(5000);
+			socket.send(packet);
+
+			// wait for response
+			DatagramPacket recievedPacket = new DatagramPacket(data, data.length);
+			socket.receive(recievedPacket);
+			socket.close();
+		}
+		catch (SocketTimeoutException e) {
+			System.out.println(orginialFqdn + " -2 " + "0.0.0.0");
+			System.exit(0);
+		}
 		//System.out.println("\n\nReceived: " + recievedPacket.getLength() + " bytes");
 
 //		for (int i = 0; i < recievedPacket.getLength(); i++) {
@@ -88,7 +102,6 @@ public class DNSlookup {
 			String rootname = rootNameServer.getHostAddress();
 			printQuery(returnedData, buf[0], buf[1], rootname, fqdn);
 		}
-
 		return returnedData;
 	}
 
@@ -152,9 +165,15 @@ public class DNSlookup {
 		ArrayList<Map> a = receivedPacket.getAnswerRecords();
 		Map<String, String> m = a.get(0);
 		if (m.get("recordType") == "CN") {
+			if (Integer.parseInt(m.get("ttl")) < minttl) {
+				minttl = Integer.parseInt(m.get("ttl"));
+			}
 			return recurse(m.get("recordValue"), rootNameServer);
 		}
 		else if (m.get("recordType") == "A") {
+			if (Integer.parseInt(m.get("ttl")) > minttl) {
+				m.put("ttl", Integer.toString(minttl));
+			}
 			return receivedPacket;
 		}
 		return null;
